@@ -17,7 +17,7 @@ LDFLAGS = \
 ifeq ($(strip $(PROFILE)),1)
 PROF_FLAGS = -pg
 CFLAGS += $(PROF_FLAGS)
-LDFLAGS += $(PROF_FLAGS) 
+LDFLAGS += $(PROF_FLAGS)
 endif
 
 OBJS := \
