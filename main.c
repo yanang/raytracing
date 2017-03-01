@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <time.h>
+#include <pthread.h>
 
 #include "primitives.h"
 #include "raytracing.h"
@@ -37,7 +38,6 @@ int main()
     light_node lights = NULL;
     rectangular_node rectangulars = NULL;
     sphere_node spheres = NULL;
-    color background = { 0.0, 0.1, 0.1 };
     struct timespec start, end;
 
 #include "use-models.h"
@@ -47,10 +47,64 @@ int main()
     if (!pixels) exit(-1);
 
     printf("# Rendering scene\n");
+
     /* do the ray tracing with the given geometry */
     clock_gettime(CLOCK_REALTIME, &start);
-    raytracing(pixels, background,
-               rectangulars, spheres, lights, &view, ROWS, COLS);
+
+    para ptr[4];
+    pthread_t pid0, pid1, pid2, pid3;
+
+    ptr[0].pixels = pixels;
+    ptr[0].rectangulars = rectangulars;
+    ptr[0].spheres = spheres;
+    ptr[0].lights = lights;
+    ptr[0].view = &view;
+    ptr[0].width_start = 0;
+    ptr[0].width = 256;
+    ptr[0].height_start = 0;
+    ptr[0].height = 256;
+    pthread_create(&pid0, NULL, raytracing, (void *)&ptr[0]);
+
+    ptr[1].pixels = pixels;
+    ptr[1].rectangulars = rectangulars;
+    ptr[1].spheres = spheres;
+    ptr[1].lights = lights;
+    ptr[1].view = &view;
+    ptr[1].width_start = 0;
+    ptr[1].width = 256;
+    ptr[1].height_start = 256;
+    ptr[1].height = 512;
+    pthread_create(&pid1, NULL, raytracing, (void *)&ptr[1]);
+
+    ptr[2].pixels = pixels;
+    ptr[2].rectangulars = rectangulars;
+    ptr[2].spheres = spheres;
+    ptr[2].lights = lights;
+    ptr[2].view = &view;
+    ptr[2].width_start = 256;
+    ptr[2].width = 512;
+    ptr[2].height_start = 256;
+    ptr[2].height = 512;
+    pthread_create(&pid2, NULL, raytracing, (void *)&ptr[2]);
+
+    ptr[3].pixels = pixels;
+    ptr[3].rectangulars = rectangulars;
+    ptr[3].spheres = spheres;
+    ptr[3].lights = lights;
+    ptr[3].view = &view;
+    ptr[3].width_start = 256;
+    ptr[3].width = 512;
+    ptr[3].height_start = 0;
+    ptr[3].height = 256;
+    pthread_create(&pid3, NULL, raytracing, (void *)&ptr[3]);
+
+
+    void *ret;
+    pthread_join(pid0,&ret);
+    pthread_join(pid1,&ret);
+    pthread_join(pid2,&ret);
+    pthread_join(pid3,&ret);
+
     clock_gettime(CLOCK_REALTIME, &end);
     {
         FILE *outfile = fopen(OUT_FILENAME, "wb");
@@ -58,10 +112,6 @@ int main()
         fclose(outfile);
     }
 
-    delete_rectangular_list(&rectangulars);
-    delete_sphere_list(&spheres);
-    delete_light_list(&lights);
-    free(pixels);
     printf("Done!\n");
     printf("Execution time of raytracing() : %lf sec\n", diff_in_second(start, end));
     return 0;
